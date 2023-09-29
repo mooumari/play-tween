@@ -45,3 +45,6 @@ some limitation:
 the sequence is lacking some features.
 
 ![Unbenanntes Video – Mit Clipchamp erstellt (1)](https://github.com/mooumari/play-tween/assets/75569583/f1f97721-9c2f-442b-904b-1adc3e3a52a0)
+
+
+![jump](https://github.com/mooumari/play-tween/assets/75569583/7a8f5138-7547-4fad-8419-98a95148c110)
