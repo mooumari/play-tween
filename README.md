@@ -11,16 +11,16 @@ adding a delay is as simple as adding SetDelay(.5f) to the end of the Tween;
 
 Creating a brand new Tween is as simple as 
 
-                TweenVector3.New(
-                duration:.5f,
-                to:Vector3.right,
-                getter:() => Vector3.zero,
-                updater:(value, tween) =>
-                {
-                    //update the value
-                    //target.position = value;
-                },
-                target:null);
+TweenVector3.New(
+duration:.5f,
+to:Vector3.right,
+getter:() => Vector3.zero,
+updater:(value, tween) =>
+{
+    //update the value
+    //target.position = value;
+},
+target:null);
 
 some limitation:
 the sequence is lacking some features.
