@@ -6,7 +6,7 @@ namespace PT.Stress_Test_Demo
     {
         public void Play()
         {
-            //transform.PlayMove(Vector3.right, 1);
+            transform.PlayMove(Vector3.right, 1).SetEase(EaseType.OutBack);
         }
     }
 }

@@ -4,43 +4,59 @@ using Object = UnityEngine.Object;
 
 namespace PT
 {
-    public interface ITween
+    public interface ITweenControl
     {
-        //Properties
-        public bool HasTarget { get; }
-        public Object Target { get; }
-        public bool IsTweenActive { get; }
         public bool IsPaused { get; }
-        
-        //Loop
-        void StartTween();
-        void UpdateTween();
-        void EndTween();
 
         //Control
         void Kill();
         void Play();
         void Pause();
         void Restart();
+    }
+
+    public interface ITweenSetter<out T> : ITweenSetterMain<T>
+    {
+        T SetFromAtStart(bool value = true);
+        T SetEase(EaseType easeType);
+        T SetEase(EaseData easeData);
+        T SetEase(AnimationCurve animationCurve);
+    }
+
+    public interface ITweenSetterMain<out T>
+    {
+        T SetDelay(float delay);
+        T SetLoop(int loopCount,LoopType loopType = LoopType.YoYo);
+        T SetTimeIndependent(bool timeIndependent = true);
+        T SetPlayDirection(PlayDirection playDirection = PlayDirection.Forward);
+        T SetAutoPlay(bool value = true);
+        T OnStart(Action callback);
+        T OnComplete(Action callback);
+    }
+
+    public interface ITweenLoop
+    {
+        public bool IsActive { get; }
+
+        void Start();
+        void Update();
+        void End();
         
-        //Setter
-        ITween SetDelay(float delay);
-        ITween SetLoop(int loopCount,LoopType loopType = LoopType.YoYo);
-        ITween SetFromAtStart(bool value = true);
-        ITween SetEase(EaseType easeType);
-        ITween SetEase(EaseData easeData);
-        ITween SetEase(AnimationCurve animationCurve);
-        ITween SetTimeIndependent(bool timeIndependent = true);
-        ITween SetPlayDirection(PlayDirection playDirection = PlayDirection.Forward);
-        ITween SetAutoPlay(bool value = true);
-        ITween OnStart(Action callback);
-        ITween OnComplete(Action callback);
-        
-        //Getter
         bool ShouldBeRemoved();
         float GetDeltaTime();
+    }
+    
+    public interface ITween : ITweenControl,ITweenSetter<ITween>,ITweenLoop
+    {
+        //Properties
+        public bool HasTarget { get; }
+        public Object Target { get; }
+        
+        //Getter
         float GetNormalTime(bool onlyForward = false);
         float GetEaseNormalTime(float normalTime);
-
+        float GetFullDuration();
+        float GetDelay();
+        float GetDuration();
     }
 }

@@ -17,11 +17,12 @@ namespace PT
         //------------------ Properties -----------------------
         public bool HasTarget { get; }
         public Object Target { get; }
-        public bool IsTweenActive { get; private set; } = false;
+        public bool IsActive { get; private set; } = false;
         public bool IsPaused { get; private set; } = false;
 
         //------------------ Fields -----------------------
         private TweenState _currentState = TweenState.Waiting;
+        private bool _customFrom = false;
         private bool _setFromStart = false;
         private bool _autoPlay = true;
         private bool _timeIndependent = false;
@@ -61,16 +62,16 @@ namespace PT
         }
         
         //------------------ Tween Loop -----------------------
-        public void StartTween()
+        public void Start()
         {
-            IsTweenActive = true;
+            IsActive = true;
             IsPaused = false;
             _currentLoopCount = 0;
             _currentPlayDirection = _playDirection;
             SetNewState(TweenState.Waiting,true);
         }
 
-        public void UpdateTween()
+        public void Update()
         {
             if (HasTarget && Target == null)
             {
@@ -101,9 +102,9 @@ namespace PT
             }
         }
 
-        public void EndTween()
+        public void End()
         {
-            IsTweenActive = false;
+            IsActive = false;
             SetNewState(TweenState.Remove);
             _onComplete?.Invoke();
         }
@@ -113,7 +114,10 @@ namespace PT
         protected virtual void StartLoop()
         {
             SetNewState(TweenState.Running,true);
-            From = Getter();
+            if (!_customFrom)
+            {
+                From = Getter();
+            }
             _currentLoopCount++;
             
             //if first loop fire start event
@@ -144,7 +148,7 @@ namespace PT
 
         protected virtual void UpdateLoop()
         {
-            Updater(GetValue(GetEaseNormalTime(GetNormalTime())),this);
+            Updater(GetValue(GetNormalTime()),this);
             
             //Check for Completion
             if (GetNormalTime(true) >= 1f)
@@ -157,7 +161,7 @@ namespace PT
         {
             if (_currentLoopCount >= _loopCount && _loopCount >= 0)
             {
-                EndTween();
+                End();
                 return;
             }
 
@@ -205,7 +209,7 @@ namespace PT
 
         public void Restart()
         {
-            StartTween();
+            Start();
         }
 
         //------------------ Setter -----------------------
@@ -268,6 +272,13 @@ namespace PT
             _autoPlay = value;
             return this;
         }
+        
+        public ITween SetFrom(T value)
+        {
+            From = value;
+            _customFrom = true;
+            return this;
+        }
 
         public ITween OnStart(Action callback)
         {
@@ -302,6 +313,21 @@ namespace PT
         public float GetEaseNormalTime(float normalTime)
         {
             return _easeDataType == EaseDataType.AnimationCurve ? _easeAnimationCurve.Evaluate(normalTime) : EaseLibrary.LerpEase(normalTime, _easeType);
+        }
+
+        public float GetFullDuration()
+        {
+            return Duration + _delay;
+        }
+
+        public float GetDelay()
+        {
+            return _delay;
+        }
+
+        public float GetDuration()
+        {
+            return Duration;
         }
 
         protected abstract T GetValue(float normalTime);

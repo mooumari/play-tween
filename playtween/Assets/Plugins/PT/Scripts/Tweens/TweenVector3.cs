@@ -11,8 +11,12 @@ namespace PT
 
         protected override Vector3 GetValue(float normalTime)
         {
-            return Vector3.LerpUnclamped(From, To, normalTime);
+            return Vector3.LerpUnclamped(From, To, GetEaseNormalTime(normalTime));
         }
-        
+
+        public static TweenVector3 New(float duration, Vector3 to, TweenGetter<Vector3> getter, TweenUpdater<Vector3, ITween> updater, Object target = null)
+        {
+            return new TweenVector3(duration, to, getter, updater, target);
+        }
     }
 }
