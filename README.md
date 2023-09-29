@@ -43,3 +43,4 @@ Creating a brand new Tween is as simple as
 
 some limitation:
 the sequence is lacking some features.
+![Unbenanntes Video – Mit Clipchamp erstellt (1)](https://github.com/mooumari/play-tween/assets/75569583/f1f97721-9c2f-442b-904b-1adc3e3a52a0)
