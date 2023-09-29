@@ -12,8 +12,13 @@ How to Use: (Move Example)
 			transform.PlayMove(Vector3.right, .5f);
 		}	
 
-you can also add easing to the tween by simply adding transform.PlayMove(Vector3.right, .5f).SetEase(EaseType.OutBack);
+you can also add easing to the tween by simply adding
+
+	transform.PlayMove(Vector3.right, .5f).SetEase(EaseType.OutBack);
+ 
 adding a delay is as simple as adding SetDelay(.5f) to the end of the Tween;
+
+	transform.PlayMove(Vector3.right, .5f).SetEase(EaseType.OutBack).SetDelay(.5f);
 
 How to use the Sequence:
 
