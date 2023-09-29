@@ -10,6 +10,7 @@ you can also add easing to the tween by simply adding transform.PlayMove(Vector3
 adding a delay is as simple as adding SetDelay(.5f) to the end of the Tween;
 
 How to use the Sequence:
+
     var sequence = PlayTween.GetSequence();
     sequence.Append(Tween);
     sequence.Join(AnotherTween);
