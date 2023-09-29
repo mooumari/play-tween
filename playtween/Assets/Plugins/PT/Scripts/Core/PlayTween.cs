@@ -9,7 +9,6 @@ namespace PT
         //------------------ Fields -----------------------
         private static List<ITween> _tweensToAdd;
         private static List<ITween> _tweens;
-        private static List<Sequence> _sequences;
 
         //------------------ Setup -----------------------
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -23,13 +22,12 @@ namespace PT
         {
             _tweensToAdd = new List<ITween>();
             _tweens = new List<ITween>();
-            _sequences = new List<Sequence>();
             
             Debug.Log("Setup PlayTween");
         }
         
         //------------------ Control -----------------------
-        public static void Update(float dt)
+        public static void Update()
         {
             if (_tweensToAdd.Count > 0)
             {
@@ -43,18 +41,10 @@ namespace PT
             
             foreach (var tween in _tweens)
             {
-                tween.Update();
+                tween.UpdateTween();
             }
             
-            _tweens.RemoveAll(x=>x.CanRemoveTween());
-            
-            //Sequence
-            foreach (var sequence in _sequences)
-            {
-                sequence.Update();
-            }
-
-            _sequences.RemoveAll(x => x.IsCompleted());
+            _tweens.RemoveAll(x=>x.ShouldBeRemoved());
         }
 
         public static T AddTween<T>(T tween) where T : ITween
@@ -62,18 +52,7 @@ namespace PT
             _tweensToAdd.Add(tween);
             return tween;
         }
-
-        public static Sequence GetSequence(int maxCount = 20)
-        {
-            return AddSequence(new Sequence(maxCount));
-        }
-
-        private static Sequence AddSequence(Sequence sequence)
-        {
-            _sequences.Add(sequence);
-            return sequence;
-        }
-
+        
         public static void Kill(Object target)
         {
             foreach (var tween in _tweens.Where(x=>x.Target == target))
@@ -119,6 +98,11 @@ namespace PT
                 _tweens.Remove(tween);
             }
         }
-        
+
+        public static TweenVector3 NewTween(float duration, Vector3 to, TweenGetter<Vector3> getter, TweenUpdater<Vector3, ITween> updater, Object target = null)
+        {
+            return new TweenVector3(duration,to,getter,updater,target);
+        }
+
     }
 }

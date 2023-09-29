@@ -54,7 +54,7 @@ namespace PT
             };
         }
 
-        public static float LerpEasing(float t, EaseType easeType)
+        public static float LerpEase(float t, EaseType easeType)
         {
             return easeType switch
             {

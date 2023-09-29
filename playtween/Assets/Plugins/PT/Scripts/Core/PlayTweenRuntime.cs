@@ -18,7 +18,7 @@ namespace PT
 
         private void Update()
         {
-            PlayTween.Update(Time.deltaTime);
+            PlayTween.Update();
         }
         
         //------------------ Setup -----------------------

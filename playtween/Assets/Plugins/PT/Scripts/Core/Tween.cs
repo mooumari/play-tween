@@ -11,196 +11,220 @@ namespace PT
             Waiting,
             Delay,
             Running,
+            Remove,
         }
         
-        private PlayDirection _playDirection = PlayDirection.Forward;
-        private TweenState _tweenState = TweenState.Waiting;
-        private bool _isPartOfSequence = false;
-        private bool _independentDeltaTime = false;
-        private bool _autoStart = true;
-        private bool _setFromStart = true;
-        private bool _firstLoop = true;
-        private int _currentLoopCount = 0;
-        private int _loopCount = 0;
-        private LoopType _loopType = LoopType.Restart;
+        //------------------ Properties -----------------------
+        public bool HasTarget { get; }
+        public Object Target { get; }
+        public bool IsTweenActive { get; private set; } = false;
+        public bool IsPaused { get; private set; } = false;
 
-        private readonly float _duration;
-        private float _delay;
-        private float _timer;
-        private bool _isCompleted = false;
-        private bool _isKilled = false;
+        //------------------ Fields -----------------------
+        private TweenState _currentState = TweenState.Waiting;
+        private bool _setFromStart = false;
+        private bool _autoPlay = true;
+        private bool _timeIndependent = false;
+        private float _timer = 0f;
+        private float _delay = 0f;
+        
         private EaseDataType _easeDataType = EaseDataType.Ease;
         private AnimationCurve _easeAnimationCurve;
-        private EaseType _easeType = EaseType.Linear;
-        private Action _completeCallback;
-        private Action _startCallback;
-        private Action<float,ITween> _updateCallback;
-        private ITween _afterTween;
+        private EaseType _easeType;
         
-        protected readonly T From;
-        protected readonly T To;
-        protected readonly TweenUpdater<T, ITween> Updater;
-        protected readonly TweenGetter<T> Getter;
+        private Action _onStart;
+        private Action _onComplete;
 
-        public Object Target { get; set; }
+        private PlayDirection _playDirection;
+        private PlayDirection _currentPlayDirection;
+        private LoopType _loopType;
+        private int _loopCount;
+        private int _currentLoopCount = 0;
+        
+        protected T From;
+        protected readonly T To;
+        protected readonly float Duration;
+        protected readonly TweenGetter<T> Getter;
+        protected readonly TweenUpdater<T,ITween> Updater;
         
         //------------------ Setup -----------------------
-        protected Tween(float duration,T from, T to, TweenUpdater<T, ITween> updater,TweenGetter<T> getter,Object target = null)
+        protected Tween(float duration,T to, TweenGetter<T> getter,TweenUpdater<T,ITween> updater, Object target = null)
         {
-            Getter = getter;
-            _duration = duration;
-            From = from;
-            To = to;
-            Updater = updater;
             Target = target;
+            HasTarget = target != null;
+            
+            To = to;
+            Duration = duration;
+            Getter = getter;
+            Updater = updater;
             PlayTween.AddTween(this);
         }
-
-        private void SetState(TweenState newState)
-        {
-            if (_tweenState == newState) return;
-            _tweenState = newState;
-        }
         
-        //------------------ ITween -----------------------
-        public virtual void StartTween()
+        //------------------ Tween Loop -----------------------
+        public void StartTween()
         {
-            _currentLoopCount++;
-            _timer = 0f;
-            
-            if (!_autoStart)
+            IsTweenActive = true;
+            IsPaused = false;
+            _currentLoopCount = 0;
+            _currentPlayDirection = _playDirection;
+            SetNewState(TweenState.Waiting,true);
+        }
+
+        public void UpdateTween()
+        {
+            if (HasTarget && Target == null)
             {
-                SetState(TweenState.Waiting);
+                SetNewState(TweenState.Remove,true);
+                Debug.LogWarning("Object deleted!");
+                return;
+            }
+            
+            _timer += GetDeltaTime();
+            
+            switch (_currentState)
+            {
+                case TweenState.Running:
+                    UpdateLoop();
+                    break;
+                case TweenState.Delay:
+                    if (_timer >= _delay)
+                    {
+                        StartLoop();
+                    }
+                    break;
+                case TweenState.Waiting:
+                    if (_autoPlay)
+                    {
+                        SetNewState(TweenState.Delay);
+                    }
+                    break;
+            }
+        }
+
+        public void EndTween()
+        {
+            IsTweenActive = false;
+            SetNewState(TweenState.Remove);
+            _onComplete?.Invoke();
+        }
+
+        #region Tween Loop
+
+        protected virtual void StartLoop()
+        {
+            SetNewState(TweenState.Running,true);
+            From = Getter();
+            _currentLoopCount++;
+            
+            //if first loop fire start event
+            if (_currentLoopCount == 1)
+            {
+                _onStart?.Invoke();
             }
             else
             {
-                if (_firstLoop)
-                {
-                    SetState(_delay > 0 ? TweenState.Delay : TweenState.Running);
-                    OnTweenStarted();
-                }
-                else
-                {
-                    SetState(TweenState.Running);
-                }
-            }
-            
-            if (!_firstLoop)
-            {
+                //update Direction based on Loop Type
                 switch (_loopType)
                 {
                     case LoopType.Restart:
                         break;
                     case LoopType.YoYo:
-                        _playDirection = _playDirection == PlayDirection.Forward
+                        _currentPlayDirection = _currentPlayDirection == PlayDirection.Forward
                             ? PlayDirection.Backward
                             : PlayDirection.Forward;
                         break;
                 }
             }
             
-            _firstLoop = false;
+
+            
+            //Update Value
+            Updater(GetValue(GetNormalTime()),this);
         }
 
-        public virtual void Update()
+        protected virtual void UpdateLoop()
         {
-            _timer += GetDeltaTime();
-
-            switch (_tweenState)
+            Updater(GetValue(GetEaseNormalTime(GetNormalTime())),this);
+            
+            //Check for Completion
+            if (GetNormalTime(true) >= 1f)
             {
-                case TweenState.Running:
-                    var normalTime = GetNormalTime();
-                    
-                    OnUpdate(normalTime);
-                    _updateCallback?.Invoke(normalTime,this);
-                    
-                    if (GetNormalTime(true) >= 1f) CompleteTween();
-                    break;
-                case TweenState.Delay:
-                    if (_timer >= _delay)
-                    {
-                        _timer = 0;
-                        SetState(TweenState.Running);
-                    }
-                    break;
-                case TweenState.Waiting:
-                    if (_autoStart)
-                    {
-                        _timer = 0;
-                        SetState(_delay > 0 ? TweenState.Delay : TweenState.Running);
-                        OnTweenStarted();
-                    }
-                    break;
+                EndLoop();
             }
         }
 
-        public float GetDuration()
+        protected virtual void EndLoop()
         {
-            return _duration;
-        }
-
-        public float GetDeltaTime()
-        {
-            return _independentDeltaTime ? Time.unscaledDeltaTime : Time.deltaTime;
-        }
-
-        public virtual bool CanRemoveTween()
-        {
-            return _isCompleted || _isKilled;
-        }
-
-        public bool IsRunning()
-        {
-            return _tweenState == TweenState.Running;
-        }
-
-        //------------------ Getter -----------------------
-        public float GetNormalTime(bool onlyForward = false)
-        {
-            if (onlyForward || _playDirection == PlayDirection.Forward)
+            if (_currentLoopCount >= _loopCount && _loopCount >= 0)
             {
-                return Mathf.Clamp01(_timer / _duration);
-            } 
-            return Mathf.Clamp01((1 - _timer) / _duration);
-        }
-
-        public float GetEaseNormalTime(float normalTime)
-        {
-            return _easeDataType == EaseDataType.Ease ? EaseLibrary.LerpEasing(normalTime, _easeType) : _easeAnimationCurve.Evaluate(normalTime);
-        }
-        
-        //------------------ Internal Control -----------------------
-        protected virtual void CompleteTween()
-        {
-            if (_loopCount < 0 || _currentLoopCount < _loopCount)
-            {
-                StartTween();
+                EndTween();
                 return;
             }
-            _isCompleted = true;
-            _completeCallback?.Invoke();
-            
-            OnTweenCompleted();
-            _afterTween?.Play();
+
+            StartLoop();
         }
         
-        //------------------ External Control -----------------------
-        public virtual void Kill()
+        #endregion
+        
+        //------------------ Control -----------------------
+        private void SetNewState(TweenState newState,bool force = false)
         {
-            _isKilled = true;
+            if(_currentState == TweenState.Remove) return;
+            if (!force && _currentState == newState) return;
+            _currentState = newState;
+            _timer = 0;
+            switch (_currentState)
+            {
+                case TweenState.Delay:
+                    //Update Value On delay before running the tween
+                    if (_setFromStart)
+                    {
+                        Updater(GetValue(GetNormalTime()),this);
+                    }
+                    break;
+                case TweenState.Running:
+                    break;
+            }
+        }
+        
+        public void Kill()
+        {
+            SetNewState(TweenState.Remove);
         }
 
-        public ITween SetDirection(PlayDirection direction = PlayDirection.Forward)
+        public void Play()
         {
-            _playDirection = direction;
+            _autoPlay = true;
+            IsPaused = false;
+        }
+
+        public void Pause()
+        {
+            IsPaused = true;
+        }
+
+        public void Restart()
+        {
+            StartTween();
+        }
+
+        //------------------ Setter -----------------------
+        public ITween SetDelay(float delay)
+        {
+            _delay = delay;
             return this;
         }
 
-        public ITween SetLoop(int loopCount, LoopType loopType = LoopType.Restart)
+        public ITween SetLoop(int loopCount, LoopType loopType = LoopType.YoYo)
         {
-            _loopCount = loopCount;
             _loopType = loopType;
-            
+            _loopCount = loopCount;
+            return this;
+        }
+
+        public ITween SetFromAtStart(bool value = true)
+        {
+            _setFromStart = value;
             return this;
         }
 
@@ -214,8 +238,8 @@ namespace PT
         public ITween SetEase(EaseData easeData)
         {
             _easeDataType = easeData.easeDataType;
-            _easeType = easeData.easeType;
             _easeAnimationCurve = easeData.animationCurve;
+            _easeType = easeData.easeType;
             return this;
         }
 
@@ -226,90 +250,60 @@ namespace PT
             return this;
         }
 
-        public ITween SetDelay(float delay)
+        public ITween SetTimeIndependent(bool timeIndependent = true)
         {
-            _delay = delay;
+            _timeIndependent = timeIndependent;
             return this;
         }
 
-        public ITween SetAutoStart(bool value = true)
+        public ITween SetPlayDirection(PlayDirection playDirection = PlayDirection.Forward)
         {
-            _autoStart = value;
+            _playDirection = playDirection;
+            _currentPlayDirection = _playDirection;
             return this;
         }
 
-        public ITween SetFromStart(bool value = true)
+        public ITween SetAutoPlay(bool value = true)
         {
-            _setFromStart = value;
-            return this;
-        }
-
-        public ITween OnUpdateCallback(Action<float, ITween> callback)
-        {
-            _updateCallback = callback;
-            return this;
-        }
-
-        public ITween ThenPlay(ITween tween)
-        {
-            tween.SetAutoStart(false);
-            
-            if (_afterTween != null)
-            {
-                _afterTween.ThenPlay(tween);
-            }
-            else
-            {
-                _afterTween = tween;
-            }
-            return this;
-        }
-
-        public ITween SetIndependentDeltaTime(bool value = true)
-        {
-            _independentDeltaTime = value;
-            return this;
-        }
-
-        public void SetAsPartOfSequence()
-        {
-            _isPartOfSequence = true;
-        }
-
-        public void Play()
-        {
-            _autoStart = true;
-        }
-
-        public ITween OnComplete(Action callback)
-        {
-            _completeCallback = callback;
+            _autoPlay = value;
             return this;
         }
 
         public ITween OnStart(Action callback)
         {
-            _startCallback = callback;
+            _onStart = callback;
             return this;
         }
-        
-        //------------------ Virtual -----------------------
-        protected virtual void OnTweenStarted()
+
+        public ITween OnComplete(Action callback)
         {
-            _startCallback?.Invoke();
-            
-            if (_setFromStart)
-            {
-                OnUpdate(GetNormalTime());
-            }
-        }
-        
-        protected virtual void OnTweenCompleted()
-        {
-            
+            _onComplete = callback;
+            return this;
         }
 
-        protected abstract void OnUpdate(float normalTime);
+        //------------------ Getter -----------------------
+        public bool ShouldBeRemoved()
+        {
+            return _currentState == TweenState.Remove;
+        }
+
+        public float GetDeltaTime()
+        {
+            if (IsPaused) return 0;
+            return _timeIndependent? Time.unscaledDeltaTime : Time.deltaTime;
+        }
+
+        public float GetNormalTime(bool onlyForward = false)
+        {
+            if (onlyForward || _currentPlayDirection == PlayDirection.Forward) return Mathf.Clamp01(_timer / Duration);
+            return Mathf.Clamp01((1 - _timer) / Duration);
+        }
+
+        public float GetEaseNormalTime(float normalTime)
+        {
+            return _easeDataType == EaseDataType.AnimationCurve ? _easeAnimationCurve.Evaluate(normalTime) : EaseLibrary.LerpEase(normalTime, _easeType);
+        }
+
         protected abstract T GetValue(float normalTime);
     }
 }

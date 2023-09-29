@@ -6,32 +6,41 @@ namespace PT
 {
     public interface ITween
     {
-        Object Target { get; set; }
-        float GetNormalTime(bool onlyForward = false);
-        float GetEaseNormalTime(float normalTime);
-        float GetDuration();
-        float GetDeltaTime();
-        bool CanRemoveTween();
-        bool IsRunning();
+        //Properties
+        public bool HasTarget { get; }
+        public Object Target { get; }
+        public bool IsTweenActive { get; }
+        public bool IsPaused { get; }
+        
+        //Loop
+        void StartTween();
+        void UpdateTween();
+        void EndTween();
 
-        ITween SetDirection(PlayDirection direction = PlayDirection.Forward);
-        ITween SetLoop(int loopCount,LoopType loopType = LoopType.Restart);
+        //Control
+        void Kill();
+        void Play();
+        void Pause();
+        void Restart();
+        
+        //Setter
+        ITween SetDelay(float delay);
+        ITween SetLoop(int loopCount,LoopType loopType = LoopType.YoYo);
+        ITween SetFromAtStart(bool value = true);
         ITween SetEase(EaseType easeType);
         ITween SetEase(EaseData easeData);
         ITween SetEase(AnimationCurve animationCurve);
-        ITween SetDelay(float delay);
-        ITween SetAutoStart(bool value = true);
-        ITween SetFromStart(bool value = true);
-        ITween OnComplete(Action callback);
+        ITween SetTimeIndependent(bool timeIndependent = true);
+        ITween SetPlayDirection(PlayDirection playDirection = PlayDirection.Forward);
+        ITween SetAutoPlay(bool value = true);
         ITween OnStart(Action callback);
-        ITween OnUpdateCallback(Action<float,ITween> callback);
-        ITween ThenPlay(ITween tween);
-        ITween SetIndependentDeltaTime(bool value = true);
+        ITween OnComplete(Action callback);
+        
+        //Getter
+        bool ShouldBeRemoved();
+        float GetDeltaTime();
+        float GetNormalTime(bool onlyForward = false);
+        float GetEaseNormalTime(float normalTime);
 
-        void SetAsPartOfSequence();
-        void Play();
-        void Update();
-        void StartTween();
-        void Kill();
     }
 }
